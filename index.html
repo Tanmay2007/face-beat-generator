@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BeatFace — Your Face Is A Beat</title>
+  
+  <!-- Google Fonts: Orbitron & Space Grotesk -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;700&display=swap" rel="stylesheet">
+  
+  <!-- Tone.js & html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  
+  <!-- MediaPipe -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <div id="scroll-progress-bar"></div>
+  <div class="crt-scanline"></div>
+  <button id="btn-back-to-top" class="back-to-top hidden">↑</button>
+
+  <!-- Screen 1: LANDING -->
+  <section id="screen-landing" class="screen active">
+    <div class="scanline-overlay"></div>
+    <div class="content-center">
+      <h1 class="title-glow">BEAT FACE</h1>
+      <p class="subtitle">Your face has a frequency. Let's find it.</p>
+      <button id="btn-begin-scan" class="cta-btn glowing-btn">BEGIN SCAN</button>
+    </div>
+    <div class="bottom-text">
+      <p>Requires camera access &middot; Works best in good lighting</p>
+    </div>
+  </section>
+
+  <!-- Screen 2: CAMERA PERMISSION -->
+  <section id="screen-permission" class="screen hidden">
+    <div class="content-center">
+      <div class="viewfinder-container">
+        <div class="corner-tl"></div>
+        <div class="corner-tr"></div>
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+        <video id="webcam" autoplay playsinline></video>
+        <div class="viewfinder-overlay scanline-fast"></div>
+        <div class="status-text blink">Activating facial scanner...</div>
+      </div>
+      <button id="btn-ready" class="cta-btn glowing-btn hidden-opacity">I'M READY</button>
+      <p class="mysterious-text">Your features are being mapped. This data never leaves your device.</p>
+    </div>
+  </section>
+
+  <!-- Screen 3: SCAN SEQUENCE -->
+  <section id="screen-scan" class="screen hidden">
+    <div class="content-center full-height flex-column">
+      <h2 id="scan-instruction" class="instruction-text">Hold still. Face the camera directly.</h2>
+      <p id="scan-dynamic-prompt" class="dynamic-prompt blink hidden">Position your face in the frame</p>
+      
+      <button id="btn-start-step" class="cta-btn glowing-btn" style="margin-top: 1rem; transition: opacity 0.5s ease;">READY — SCAN THIS</button>
+
+      <div class="main-feed-container">
+        <canvas id="output_canvas" class="output_canvas" width="400" height="300"></canvas>
+        <div id="scan-overlay-effect" class="scan-overlay"></div>
+      </div>
+
+      <div id="lock-status" class="lock-status hidden">
+        <span class="lock-icon">✔</span> <span id="lock-text">FACE LOCKED</span>
+      </div>
+
+      <div class="bottom-area">
+        <div id="scan-one-liner" class="one-liner fade-element"></div>
+        
+        <div class="confidence-container">
+          <div class="confidence-label">CONFIDENCE <span id="confidence-value">0</span>%</div>
+          <div class="confidence-bar-bg">
+            <div id="confidence-bar-fill" class="confidence-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="progress-dots">
+          <span class="dot active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </div>
+        <div class="progress-text">Step <span id="step-counter">1</span>/6</div>
+      </div>
+    </div>
+    <div id="flash-effect" class="flash hidden">CAPTURED</div>
+  </section>
+
+  <!-- Screen 4: BEAT BUILDING -->
+  <section id="screen-building" class="screen hidden">
+    <div class="content-center">
+      <h2 class="assembling-text blink">Assembling your frequency...</h2>
+      <div class="bars-container">
+        <div class="layer-bar" id="bar-1"><span class="bar-label">LAYER 01: STRUCTURE</span><div class="bar-fill color-1"></div></div>
+        <div class="layer-bar" id="bar-2"><span class="bar-label">LAYER 02: RESONANCE</span><div class="bar-fill color-2"></div></div>
+        <div class="layer-bar" id="bar-3"><span class="bar-label">LAYER 03: EXPRESSION</span><div class="bar-fill color-3"></div></div>
+        <div class="layer-bar" id="bar-4"><span class="bar-label">LAYER 04: DEPTH</span><div class="bar-fill color-4"></div></div>
+        <div class="layer-bar" id="bar-5"><span class="bar-label">LAYER 05: PULSE</span><div class="bar-fill color-5"></div></div>
+        <div class="layer-bar" id="bar-6"><span class="bar-label">LAYER 06: COMPLEXITY</span><div class="bar-fill color-6"></div></div>
+      </div>
+      <div class="waveform-viz" id="build-waveform">
+        <!-- Bars generated by JS -->
+      </div>
+    </div>
+    <div id="white-flash" class="white-flash hidden"></div>
+  </section>
+
+  <div class="bg-grid"></div>
+
+  <!-- Screen 5: THE FEED -->
+  <section id="screen-feed" class="screen hidden">
+    <div class="feed-container">
+      
+      <!-- Section 1: Result Hero -->
+      <section id="section-result" class="scroll-section">
+        <div class="particle-bg"></div>
+        <div class="content-center z-front">
+          <div class="result-box">
+            <h1 id="personality-type" class="personality-title">THE CHAOS AGENT</h1>
+            <p id="personality-desc" class="personality-desc">Structured. Deliberate. The universe had a plan when it made this face.</p>
+            <div class="scroll-indicator" onclick="document.getElementById('section-player').scrollIntoView()">↓ SCROLL TO HEAR</div>
+          </div>
+        </div>
+      </section>
+
+      <hr class="sci-fi-divider">
+
+      <!-- Section 2: Player -->
+      <section id="section-player" class="scroll-section">
+        <h2 class="section-title">YOUR FREQUENCY</h2>
+        <div class="player-container" style="width: 100%; max-width: 600px;">
+          <div class="player-header">
+            <div class="now-playing blink-slow">NOW PLAYING</div>
+            <div class="bpm-counter"><span id="bpm-value">120</span> BPM</div>
+          </div>
+          <div class="main-waveform-container" id="player-waveform">
+            <canvas id="visualizer-canvas" class="visualizer-canvas"></canvas>
+          </div>
+          <div class="player-footer">
+            <div id="player-personality" class="small-personality">THE CHAOS AGENT</div>
+          </div>
+        </div>
+        <button id="btn-play-beat" class="cta-btn glowing-btn" style="margin-top:2rem;">PLAY BEAT</button>
+        <div class="scroll-indicator" onclick="document.getElementById('section-profile').scrollIntoView()">↓ YOUR PROFILE</div>
+      </section>
+
+      <hr class="sci-fi-divider">
+
+      <!-- Section 3: Profile -->
+      <section id="section-profile" class="scroll-section">
+        <h2 class="section-title">YOUR BEAT PROFILE</h2>
+        <div class="beat-profile-panel" style="width: 100%; max-width: 800px;">
+          <div class="metrics-grid" id="result-metrics-grid"></div>
+        </div>
+        <div class="scroll-indicator" onclick="document.getElementById('section-waterfall').scrollIntoView()">↓ SONG MATCHES</div>
+      </section>
+
+      <!-- Waterfall Transition -->
+      <section id="section-waterfall" class="waterfall-section">
+        <canvas id="waterfall-canvas"></canvas>
+        <div class="waterfall-note">♪</div>
+      </section>
+
+      <!-- Section 4: Song Matching -->
+      <section id="section-songs" class="scroll-section">
+        <h2 class="section-title">RESONATES WITH</h2>
+        <div class="songs-list" id="matched-songs-list"></div>
+        <div class="scroll-indicator" onclick="document.getElementById('section-dna').scrollIntoView()">↓ BEAT DNA</div>
+      </section>
+
+      <hr class="sci-fi-divider">
+
+      <!-- Section 5: DNA Actions -->
+      <section id="section-dna" class="scroll-section">
+        <h2 class="section-title">BEAT DNA</h2>
+        <div class="dna-box">
+          <div id="dna-code" class="dna-code monospace">BEAT:112-E4-CHAOS-5F</div>
+        </div>
+        <div class="dna-actions">
+          <button id="btn-copy-dna" class="action-btn cyan-btn">COPY DNA</button>
+          <button id="btn-share-dna" class="action-btn green-btn">SHARE</button>
+          <button id="btn-enter-dna" class="action-btn muted-btn">ENTER DNA</button>
+        </div>
+        <div class="scroll-indicator" onclick="document.getElementById('section-save').scrollIntoView()">↓ EXPORT</div>
+      </section>
+
+      <hr class="sci-fi-divider">
+
+      <!-- Section 6: Save Card -->
+      <section id="section-save" class="scroll-section">
+        <h2 class="section-title">ARCHIVE</h2>
+        <button id="btn-save-card" class="cta-btn glowing-btn neon-green-btn">SAVE CARD</button>
+        <button id="btn-scan-again-1" class="secondary-btn" style="margin-top:2rem;">SCAN AGAIN</button>
+      </section>
+      
+    </div>
+  </section>
+
+  <!-- Modal for Enter DNA -->
+  <div id="dna-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3>ENTER BEAT DNA</h3>
+      <p>Paste a Beat DNA code to listen to that frequency.</p>
+      <input type="text" id="dna-input" placeholder="BEAT:120-EUPHORIC-CHAOS-5F" class="dna-input-field">
+      <div class="btn-group row">
+        <button id="btn-load-dna" class="cta-btn glowing-btn">LOAD BEAT</button>
+        <button id="btn-close-modal" class="secondary-btn">CANCEL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden Container for Save Card Export -->
+  <div id="export-container" class="export-container hidden-absolute">
+    <div id="export-card" class="export-card">
+      <div class="export-logo">BEATFACE</div>
+      <h1 id="export-personality" class="export-personality">THE CHAOS AGENT</h1>
+      
+      <div class="export-profile">
+        <div class="metrics-grid" id="export-metrics-grid"></div>
+      </div>
+      
+      <div class="export-dna-box">
+        <span class="dna-label">BEAT DNA</span>
+        <div id="export-dna-code" class="dna-code monospace"></div>
+      </div>
+      
+      <div class="export-songs">
+        <h3>RESONATES WITH</h3>
+        <div class="songs-list" id="export-songs-list"></div>
+      </div>
+      
+      <div class="export-footer">beatface.app · Your face is a frequency</div>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="js/script.js"></script>
+</body>
+</html>
